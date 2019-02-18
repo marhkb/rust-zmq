@@ -583,9 +583,9 @@ pub trait Sendable {
     fn send(self, socket: &Socket, flags: i32) -> Result<()>;
 }
 
-impl<T> Sendable for T
+impl<'a, T> Sendable for T
 where
-    T: Into<Message>,
+    T: Into<Message<'a>>,
 {
     fn send(self, socket: &Socket, flags: i32) -> Result<()> {
         let mut msg = self.into();
@@ -667,22 +667,15 @@ impl Socket {
         data.send(self, flags)
     }
 
-    pub fn send_bytes(&self, data: &[u8], flags: i32) -> Result<()> {
-        zmq_try!(unsafe {
-            zmq_sys::zmq_send(self.sock, data.as_ptr() as *const c_void, data.len(), flags as c_int)
-        });
-        Ok(())
-    }
-
     #[deprecated(since = "0.9.0", note = "Use `send` instead")]
     pub fn send_str(&self, data: &str, flags: i32) -> Result<()> {
         self.send(data, flags)
     }
 
-    pub fn send_multipart<I, T>(&self, iter: I, flags: i32) -> Result<()>
+    pub fn send_multipart<'a, I, T>(&self, iter: I, flags: i32) -> Result<()>
     where
         I: IntoIterator<Item = T>,
-        T: Into<Message>,
+        T: Into<Message<'a>>,
     {
         let mut last_part: Option<T> = None;
         for part in iter {
