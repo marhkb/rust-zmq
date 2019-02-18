@@ -667,10 +667,11 @@ impl Socket {
         data.send(self, flags)
     }
 
-    /// Send a `Message` message.
-    #[deprecated(since = "0.9.0", note = "Use `send` instead")]
-    pub fn send_msg(&self, msg: Message, flags: i32) -> Result<()> {
-        self.send(msg, flags)
+    pub fn send_bytes(&self, data: &[u8], flags: i32) -> Result<()> {
+        zmq_try!(unsafe {
+            zmq_sys::zmq_send(self.sock, data.as_ptr() as *const c_void, data.len(), flags as c_int)
+        });
+        Ok(())
     }
 
     #[deprecated(since = "0.9.0", note = "Use `send` instead")]
