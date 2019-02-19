@@ -583,9 +583,9 @@ pub trait Sendable {
     fn send(self, socket: &Socket, flags: i32) -> Result<()>;
 }
 
-impl<'a, T> Sendable for T
+impl<T> Sendable for T
 where
-    T: Into<Message<'a>>,
+    T: Into<Message>,
 {
     fn send(self, socket: &Socket, flags: i32) -> Result<()> {
         let mut msg = self.into();
@@ -667,15 +667,21 @@ impl Socket {
         data.send(self, flags)
     }
 
+    /// Send a `Message` message.
+    #[deprecated(since = "0.9.0", note = "Use `send` instead")]
+    pub fn send_msg(&self, msg: Message, flags: i32) -> Result<()> {
+        self.send(msg, flags)
+    }
+
     #[deprecated(since = "0.9.0", note = "Use `send` instead")]
     pub fn send_str(&self, data: &str, flags: i32) -> Result<()> {
         self.send(data, flags)
     }
 
-    pub fn send_multipart<'a, I, T>(&self, iter: I, flags: i32) -> Result<()>
+    pub fn send_multipart<I, T>(&self, iter: I, flags: i32) -> Result<()>
     where
         I: IntoIterator<Item = T>,
-        T: Into<Message<'a>>,
+        T: Into<Message>,
     {
         let mut last_part: Option<T> = None;
         for part in iter {
