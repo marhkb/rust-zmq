@@ -7,8 +7,44 @@ use std::fmt;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::c_void;
 use std::{ptr, slice, str};
+use std::marker::PhantomData;
 
 use super::errno_to_error;
+
+
+unsafe extern "C" fn drop_ref_message(_data: *mut c_void, _hint: *mut c_void) {
+    // Nothing
+}
+
+pub struct RefMessage<'a> {
+    msg: zmq_sys::zmq_msg_t,
+    phantom: PhantomData<&'a ()>
+}
+
+impl<'a> RefMessage<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        unsafe {
+            let mut msg = zmq_sys::zmq_msg_t::default();
+            zmq_sys::zmq_msg_init_data(
+                &mut msg,
+                data.as_ptr() as *mut c_void,
+                data.len(),
+                drop_ref_message as *mut zmq_sys::zmq_free_fn,
+                ptr::null_mut(),
+            );
+            Self { msg, phantom: PhantomData }
+        }
+    }
+}
+
+impl<'a, T> From<&'a T> for RefMessage<'a> where T: AsRef<[u8]> + 'a {
+    fn from(data: &'a T) -> Self { Self::new(data.as_ref()) }
+}
+
+/// Get the low-level C pointer.
+pub fn ref_msg_ptr(msg: &mut RefMessage) -> *mut zmq_sys::zmq_msg_t {
+    &mut msg.msg
+}
 
 /// Holds a 0MQ message.
 ///
@@ -21,7 +57,7 @@ use super::errno_to_error;
 /// `Socket::send_str()`). However, using message objects can make multiple
 /// operations in a loop more efficient, since allocated memory can be reused.
 pub struct Message {
-    msg: zmq_sys::zmq_msg_t,
+    msg: zmq_sys::zmq_msg_t
 }
 
 impl Drop for Message {
@@ -202,6 +238,7 @@ where
         v.clone().into()
     }
 }
+
 
 /// Get the low-level C pointer.
 pub fn msg_ptr(msg: &mut Message) -> *mut zmq_sys::zmq_msg_t {

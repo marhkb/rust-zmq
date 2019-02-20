@@ -22,9 +22,10 @@ use std::sync::Arc;
 use libc::{c_int, c_long, c_short};
 
 pub use message::Message;
-use message::msg_ptr;
+use message::{ref_msg_ptr, msg_ptr};
 pub use SocketType::*;
 use zmq_sys::{errno, RawFd};
+use message::RefMessage;
 
 macro_rules! zmq_try {
     ($($tt:tt)*) => {{
@@ -568,6 +569,20 @@ macro_rules! sockopts {
     };
 }
 
+
+pub trait RefSendable<'a> {
+    fn send(self, socket: &Socket, flags: i32) -> Result<()>;
+}
+
+impl<'a, T> RefSendable<'a> for T where T: Into<RefMessage<'a>> {
+    fn send(self, socket: &Socket, flags: i32) -> Result<()> {
+        let mut msg = self.into();
+        zmq_try!(unsafe { zmq_sys::zmq_msg_send(ref_msg_ptr(&mut msg), socket.sock, flags as c_int) });
+        Ok(())
+    }
+}
+
+
 /// Sendable over a `Socket`.
 ///
 /// A type can implement this trait there is an especially efficient
@@ -652,6 +667,12 @@ impl Socket {
             zmq_sys::zmq_socket_monitor(self.sock, c_str.as_ptr(), events as c_int)
         });
         Ok(())
+    }
+
+    pub fn send_ref<T>(&self, data: T, flags: i32) -> Result<()>
+        where T: for<'a> RefSendable<'a>
+    {
+        data.send(self, flags)
     }
 
     /// Send a message.
