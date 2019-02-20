@@ -57,9 +57,9 @@ impl Message {
     }
 
     /// Create an empty `Message`.
-    pub fn new() -> Self {
-        unsafe { Self::alloc(|msg| zmq_sys::zmq_msg_init(msg)) }
-    }
+    pub fn new() -> Self { unsafe { Self::alloc(|msg| zmq_sys::zmq_msg_init(msg)) } }
+
+    pub fn from_raw(msg: zmq_sys::zmq_msg_t) -> Self { Self { msg } }
 
     /// Create a `Message` preallocated with `len` uninitialized bytes.
     pub unsafe fn with_capacity_unallocated(len: usize) -> Self {

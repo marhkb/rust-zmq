@@ -5,14 +5,12 @@
 
 #[macro_use]
 extern crate bitflags;
-
+extern crate libc;
 #[macro_use]
 extern crate log;
+pub extern crate zmq_sys;
 
-extern crate libc;
-extern crate zmq_sys;
-
-use libc::{c_int, c_long, c_short};
+use std::{mem, ptr, str};
 use std::ffi;
 use std::fmt;
 use std::marker::PhantomData;
@@ -20,8 +18,12 @@ use std::os::raw::c_void;
 use std::result;
 use std::string::FromUtf8Error;
 use std::sync::Arc;
-use std::{mem, ptr, str};
 
+use libc::{c_int, c_long, c_short};
+
+pub use message::Message;
+use message::msg_ptr;
+pub use SocketType::*;
 use zmq_sys::{errno, RawFd};
 
 macro_rules! zmq_try {
@@ -36,10 +38,6 @@ macro_rules! zmq_try {
 
 mod message;
 mod sockopt;
-
-use message::msg_ptr;
-pub use message::Message;
-pub use SocketType::*;
 
 /// `zmq`-specific Result type.
 pub type Result<T> = result::Result<T, Error>;
@@ -665,18 +663,6 @@ impl Socket {
         T: Sendable,
     {
         data.send(self, flags)
-    }
-
-    /// Send a `Message` message.
-    #[deprecated(since = "0.9.0", note = "Use `send` instead")]
-    pub fn send_msg(&self, msg: Message, flags: i32) -> Result<()> {
-        self.send(msg, flags)
-    }
-
-    #[deprecated(since = "0.9.0", note = "Use `send` instead")]
-    pub fn send_str(&self, data: &str, flags: i32) -> Result<()> {
-        self.send(data, flags)
-    }
     }
 
     pub fn send_multipart<I, T>(&self, iter: I, flags: i32) -> Result<()>
