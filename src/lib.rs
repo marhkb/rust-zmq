@@ -677,6 +677,7 @@ impl Socket {
     pub fn send_str(&self, data: &str, flags: i32) -> Result<()> {
         self.send(data, flags)
     }
+    }
 
     pub fn send_multipart<I, T>(&self, iter: I, flags: i32) -> Result<()>
     where

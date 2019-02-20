@@ -7,7 +7,6 @@ use std::fmt;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::c_void;
 use std::{ptr, slice, str};
-use std::marker::PhantomData;
 
 use super::errno_to_error;
 
@@ -21,12 +20,11 @@ use super::errno_to_error;
 /// convenience APIs provided (e.g. `Socket::recv_bytes()` or
 /// `Socket::send_str()`). However, using message objects can make multiple
 /// operations in a loop more efficient, since allocated memory can be reused.
-pub struct Message<'a> {
+pub struct Message {
     msg: zmq_sys::zmq_msg_t,
-    phantom: PhantomData<&'a ()>
 }
 
-impl Drop for Message<'_> {
+impl Drop for Message {
     fn drop(&mut self) {
         unsafe {
             let rc = zmq_sys::zmq_msg_close(&mut self.msg);
@@ -35,7 +33,7 @@ impl Drop for Message<'_> {
     }
 }
 
-impl fmt::Debug for Message<'_> {
+impl fmt::Debug for Message {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self.deref())
     }
@@ -45,7 +43,7 @@ unsafe extern "C" fn drop_msg_content_box(data: *mut c_void, _hint: *mut c_void)
     let _ = Box::from_raw(data as *mut u8);
 }
 
-impl<'a> Message<'a> {
+impl Message {
     unsafe fn alloc<F>(f: F) -> Self
     where
         F: FnOnce(&mut zmq_sys::zmq_msg_t) -> i32,
@@ -55,7 +53,7 @@ impl<'a> Message<'a> {
         if rc == -1 {
             panic!(errno_to_error())
         }
-        Message { msg, phantom: PhantomData }
+        Message { msg }
     }
 
     /// Create an empty `Message`.
@@ -80,17 +78,11 @@ impl<'a> Message<'a> {
     /// Create a `Message` from a `&[u8]`. This will copy `data` into the message.
     ///
     /// This is equivalent to using the `From<&[u8]>` trait.
-    pub fn from_slice(data: &'a [u8]) -> Self {
+    pub fn from_slice(data: &[u8]) -> Message {
         unsafe {
-            let mut msg = zmq_sys::zmq_msg_t::default();
-            zmq_sys::zmq_msg_init_data(
-                &mut msg,
-                data.as_ptr() as *mut c_void,
-                data.len(),
-                ptr::null_mut(),
-                ptr::null_mut()
-            );
-            Message { msg, phantom: PhantomData }
+            let mut msg = Message::with_capacity_unallocated(data.len());
+            ptr::copy_nonoverlapping(data.as_ptr(), msg.as_mut_ptr(), data.len());
+            msg
         }
     }
 
@@ -126,7 +118,7 @@ impl<'a> Message<'a> {
     }
 
     /// Query a message metadata property.
-    pub fn gets<'b>(&'b mut self, property: &str) -> Option<&'b str> {
+    pub fn gets<'a>(&'a mut self, property: &str) -> Option<&'a str> {
         let c_str = ffi::CString::new(property.as_bytes()).unwrap();
 
         let value = unsafe { zmq_sys::zmq_msg_gets(&mut self.msg, c_str.as_ptr()) };
@@ -139,7 +131,7 @@ impl<'a> Message<'a> {
     }
 }
 
-impl Deref for Message<'_> {
+impl Deref for Message {
     type Target = [u8];
 
     fn deref(&self) -> &[u8] {
@@ -154,15 +146,15 @@ impl Deref for Message<'_> {
     }
 }
 
-impl PartialEq for Message<'_> {
+impl PartialEq for Message {
     fn eq(&self, other: &Message) -> bool {
         self[..] == other[..]
     }
 }
 
-impl Eq for Message<'_> {}
+impl Eq for Message {}
 
-impl DerefMut for Message<'_> {
+impl DerefMut for Message {
     fn deref_mut(&mut self) -> &mut [u8] {
         // This is safe because we're constraining the slice to the lifetime of
         // this message.
@@ -174,39 +166,39 @@ impl DerefMut for Message<'_> {
     }
 }
 
-impl<'a> From<&'a [u8]> for Message<'a> {
+impl From<&'_ [u8]> for Message {
     /// Construct from a byte slice by copying the data.
-    fn from(msg: &'a [u8]) -> Self {
+    fn from(msg: &[u8]) -> Self {
         Message::from_slice(msg)
     }
 }
 
-impl From<Vec<u8>> for Message<'_> {
+impl From<Vec<u8>> for Message {
     /// Construct from a byte vector without copying the data.
     fn from(msg: Vec<u8>) -> Self {
         Message::from_box(msg.into_boxed_slice())
     }
 }
 
-impl<'a> From<&'a str> for Message<'a> {
+impl From<&'_ str> for Message {
     /// Construct from a string slice by copying the UTF-8 data.
-    fn from(msg: &'a str) -> Self {
+    fn from(msg: &str) -> Self {
         Message::from_slice(msg.as_bytes())
     }
 }
 
-impl<'a> From<&'a String> for Message<'a> {
+impl From<&'_ String> for Message {
     /// Construct from a string slice by copying the UTF-8 data.
-    fn from(msg: &'a String) -> Self {
+    fn from(msg: &String) -> Self {
         Message::from_slice(msg.as_bytes())
     }
 }
 
-impl<'a, T> From<&'a T> for Message<'a>
+impl<T> From<&'_ T> for Message
 where
-    T: Into<Message<'a>> + Clone,
+    T: Into<Message> + Clone,
 {
-    fn from(v: &'a T) -> Self {
+    fn from(v: &T) -> Self {
         v.clone().into()
     }
 }
