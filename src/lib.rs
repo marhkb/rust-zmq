@@ -568,20 +568,6 @@ macro_rules! sockopts {
     };
 }
 
-
-pub trait RefSendable<'a> {
-    fn send(self, socket: &Socket, flags: i32) -> Result<()>;
-}
-
-impl<'a, T> RefSendable<'a> for T where T: Into<RefMessage<'a>> {
-    fn send(self, socket: &Socket, flags: i32) -> Result<()> {
-        let mut msg = self.into();
-        zmq_try!(unsafe { zmq_sys::zmq_msg_send(ref_msg_ptr(&mut msg), socket.sock, flags as c_int) });
-        Ok(())
-    }
-}
-
-
 /// Sendable over a `Socket`.
 ///
 /// A type can implement this trait there is an especially efficient
@@ -668,10 +654,9 @@ impl Socket {
         Ok(())
     }
 
-    pub fn send_ref<T>(&self, data: T, flags: i32) -> Result<()>
-        where T: for<'a> RefSendable<'a>
-    {
-        data.send(self, flags)
+    pub fn send_ref(&self, mut msg: RefMessage, flags: i32) -> Result<()> {
+        zmq_try!(unsafe { zmq_sys::zmq_msg_send(ref_msg_ptr(&mut msg), self.sock, flags as c_int) });
+        Ok(())
     }
 
     /// Send a message.
