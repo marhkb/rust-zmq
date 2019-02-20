@@ -21,11 +21,10 @@ use std::sync::Arc;
 
 use libc::{c_int, c_long, c_short};
 
-pub use message::Message;
+pub use message::{RefMessage, Message};
 use message::{ref_msg_ptr, msg_ptr};
 pub use SocketType::*;
 use zmq_sys::{errno, RawFd};
-use message::RefMessage;
 
 macro_rules! zmq_try {
     ($($tt:tt)*) => {{
