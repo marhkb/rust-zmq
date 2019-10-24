@@ -7,14 +7,9 @@ use std::fmt;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::c_void;
 use std::{ptr, slice, str};
-use std::marker::PhantomData;
 
 use super::errno_to_error;
 
-
-unsafe extern "C" fn drop_ref_message(_data: *mut c_void, _hint: *mut c_void) {
-    // Nothing
-}
 
 /// Holds a 0MQ message.
 ///
@@ -182,49 +177,14 @@ impl DerefMut for Message {
     }
 }
 
-//impl From<&'_ [u8]> for Message {
-//    /// Construct a message from a byte slice by copying the data.
-//    fn from(data: &[u8]) -> Self {
-//        unsafe {
-//            let mut msg = Message::with_size_uninit(data.len());
-//            ptr::copy_nonoverlapping(data.as_ptr(), msg.as_mut_ptr(), data.len());
-//            msg
-//        }
-//    }
-//}
+impl From<Vec<u8>> for Message {
+    /// Construct a message from a byte vector without copying the data.
+    fn from(msg: Vec<u8>) -> Self {
+        Message::from(msg.into_boxed_slice())
+    }
+}
 
-
-
-//impl From<Vec<u8>> for Message {
-//    /// Construct a message from a byte vector without copying the data.
-//    fn from(msg: Vec<u8>) -> Self {
-//        Message::from(msg.into_boxed_slice())
-//    }
-//}
-
-//impl From<Box<[u8]>> for Message {
-//    /// Construct a message from a boxed slice without copying the data.
-//    fn from(data: Box<[u8]>) -> Self {
-//        let n = data.len();
-//        if n == 0 {
-//            return Message::new();
-//        }
-//        let raw = Box::into_raw(data);
-//        unsafe {
-//            Self::alloc(|msg| {
-//                zmq_sys::zmq_msg_init_data(
-//                    msg,
-//                    raw as *mut c_void,
-//                    n,
-//                    Some(drop_msg_content_box),
-//                    ptr::null_mut(),
-//                )
-//            })
-//        }
-//    }
-//}
-
-impl<T: AsRef<[u8]>> From<Box<T>> for Message {
+impl<T: AsRef<[u8]> + ?Sized> From<Box<T>> for Message {
     /// Construct a message from a boxed slice without copying the data.
     fn from(data: Box<T>) -> Self {
         let n = data.as_ref().as_ref().len();
