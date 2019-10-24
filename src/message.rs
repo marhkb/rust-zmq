@@ -177,11 +177,16 @@ impl DerefMut for Message {
     }
 }
 
+impl From<String> for Message {
+    /// Construct a message from a byte vector without copying the data.
+    fn from(msg: String) -> Self {
+        Self::from(msg.into_bytes())
+    }
+}
+
 impl From<Vec<u8>> for Message {
     /// Construct a message from a byte vector without copying the data.
-    fn from(msg: Vec<u8>) -> Self {
-        Message::from(msg.into_boxed_slice())
-    }
+    fn from(msg: Vec<u8>) -> Self { Self::from(msg.into_boxed_slice()) }
 }
 
 impl<T: AsRef<[u8]> + ?Sized> From<Box<T>> for Message {
@@ -208,34 +213,14 @@ impl<T: AsRef<[u8]> + ?Sized> From<Box<T>> for Message {
 
 impl<T: AsRef<[u8]> + ?Sized> From<&'_ T> for Message {
     /// Construct from a string slice by copying the UTF-8 data.
-    fn from(msg: &T) -> Self {
-        Message::from(msg.as_ref())
+    fn from(data: &T) -> Self {
+        unsafe {
+            let mut msg = Message::with_size_uninit(data.as_ref().len());
+            ptr::copy_nonoverlapping(data.as_ref().as_ptr(), msg.as_mut_ptr(), data.as_ref().len());
+            msg
+        }
     }
 }
-
-//impl From<&'_ str> for Message {
-//    /// Construct from a string slice by copying the UTF-8 data.
-//    fn from(msg: &str) -> Self {
-//        Message::from(msg.as_bytes())
-//    }
-//}
-//
-////impl From<&'_ String> for Message {
-////    /// Construct from a string slice by copying the UTF-8 data.
-////    fn from(msg: &String) -> Self {
-////        Message::from(msg.as_bytes())
-////    }
-////}
-//
-////impl<T> From<&'_ T> for Message
-////where
-////    T: Into<Message> + Clone,
-////{
-////    fn from(v: &T) -> Self {
-////        v.clone().into()
-////    }
-////}
-
 
 /// Get the low-level C pointer.
 pub fn msg_ptr(msg: &mut Message) -> *mut zmq_sys::zmq_msg_t {
