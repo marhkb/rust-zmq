@@ -4,16 +4,11 @@
 //! child thread, along with the endpoint address to connect to. The
 //! second socket is the created in the child thread.
 
-extern crate zmq;
-
-#[macro_use]
-extern crate log;
-
 #[macro_use]
 mod common;
 
 #[cfg(unix)]
-#[path = "connection/unix.rs"]
+#[path = "unix/connection.rs"]
 mod unix;
 
 use std::str;

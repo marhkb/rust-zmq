@@ -1,13 +1,11 @@
 // Pathological publisher
 // Sends out 1,000 topics and then one random update per second
-extern crate rand;
-extern crate zmq;
 
 use std::env;
 use std::thread::sleep;
 use std::time::Duration;
 
-use rand::distributions::{Distribution, Range};
+use rand::distributions::{Distribution, Uniform};
 
 fn main() {
     let context = zmq::Context::new();
@@ -34,14 +32,15 @@ fn main() {
     }
     // Send one random update per second
     let mut rng = rand::thread_rng();
-    let topic_range = Range::new(0, 1000);
+    let topic_range = Uniform::new(0, 1000);
     loop {
         sleep(Duration::from_millis(1000));
         publisher
             .send(
                 &format!("{:03}", topic_range.sample(&mut rng)),
                 zmq::SNDMORE,
-            ).unwrap();
+            )
+            .unwrap();
         publisher.send("Off with his head!", 0).unwrap();
     }
 }

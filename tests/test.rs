@@ -1,6 +1,3 @@
-extern crate timebomb;
-extern crate zmq;
-
 #[macro_use]
 mod common;
 
@@ -44,8 +41,7 @@ test!(test_exchanging_messages, {
     assert_eq!(format!("{:?}", msg), "[102, 111, 111]");
 
     receiver.send("bar", 0).unwrap();
-    let mut msg = Message::with_capacity(1);
-    sender.recv(&mut msg, 0).unwrap();
+    let msg = sender.recv_msg(0).unwrap();
     assert_eq!(&msg[..], b"bar");
 });
 
@@ -146,13 +142,6 @@ test!(test_into_io_error, {
     assert!(e.kind() == io::ErrorKind::NotFound);
 });
 
-#[cfg(ZMQ_HAS_CURVE = "1")]
-test!(test_curve_keypair, {
-    let keypair = CurveKeyPair::new().unwrap();
-    assert!(keypair.public_key.len() == 32);
-    assert!(keypair.secret_key.len() == 32);
-});
-
 test!(test_get_socket_type, {
     let ctx = Context::new();
 
@@ -226,6 +215,20 @@ test!(test_subscription, {
     let sock = ctx.socket(SUB).unwrap();
     assert!(sock.set_subscribe(b"/channel").is_ok());
     assert!(sock.set_unsubscribe(b"/channel").is_ok());
+});
+
+test!(test_set_req_relaxed, {
+    let ctx = Context::new();
+    let sock = ctx.socket(REQ).unwrap();
+    assert!(sock.set_req_relaxed(true).is_ok());
+    assert!(sock.set_req_relaxed(false).is_ok());
+});
+
+test!(test_set_req_correlate, {
+    let ctx = Context::new();
+    let sock = ctx.socket(REQ).unwrap();
+    assert!(sock.set_req_correlate(true).is_ok());
+    assert!(sock.set_req_correlate(false).is_ok());
 });
 
 test!(test_getset_rate, {
@@ -431,6 +434,24 @@ test!(test_getset_plain_password, {
     assert!(sock.get_mechanism().unwrap() == Mechanism::ZMQ_NULL);
 });
 
+test!(test_zmq_set_xpub_verbose, {
+    let ctx = Context::new();
+    let xpub = ctx.socket(XPUB).unwrap();
+    let sub = ctx.socket(SUB).unwrap();
+
+    xpub.bind("inproc://set_xpub_verbose").unwrap();
+    xpub.set_xpub_verbose(true).unwrap();
+
+    sub.connect("inproc://set_xpub_verbose").unwrap();
+    for _ in 0..2 {
+        sub.set_subscribe(b"topic").unwrap();
+
+        let event = xpub.recv_msg(0).unwrap();
+        assert_eq!(event[0], 1);
+        assert_eq!(&event[1..], b"topic");
+    }
+});
+
 test!(test_zmq_xpub_welcome_msg, {
     let ctx = Context::new();
     let xpub = ctx.socket(XPUB).unwrap();
@@ -484,41 +505,6 @@ test!(test_ctx_nohang, {
     assert_eq!(sock.get_socket_type(), Ok(REQ));
 });
 
-#[cfg(ZMQ_HAS_CURVE = "1")]
-test!(test_getset_curve_server, {
-    let ctx = Context::new();
-    let sock = ctx.socket(REQ).unwrap();
-    sock.set_curve_server(true).unwrap();
-    assert_eq!(sock.is_curve_server().unwrap(), true);
-});
-
-#[cfg(ZMQ_HAS_CURVE = "1")]
-test!(test_getset_curve_publickey, {
-    let ctx = Context::new();
-    let sock = ctx.socket(REQ).unwrap();
-    let key = z85_decode("FX5b8g5ZnOk7$Q}^)Y&?.v3&MIe+]OU7DTKynkUL").unwrap();
-    sock.set_curve_publickey(&key).unwrap();
-    assert_eq!(sock.get_curve_publickey().unwrap(), key);
-});
-
-#[cfg(ZMQ_HAS_CURVE = "1")]
-test!(test_getset_curve_secretkey, {
-    let ctx = Context::new();
-    let sock = ctx.socket(REQ).unwrap();
-    let key = z85_decode("s9N%S3*NKSU$6pUnpBI&K5HBd[]G$Y3yrK?mhdbS").unwrap();
-    sock.set_curve_secretkey(&key).unwrap();
-    assert_eq!(sock.get_curve_secretkey().unwrap(), key);
-});
-
-#[cfg(ZMQ_HAS_CURVE = "1")]
-test!(test_getset_curve_serverkey, {
-    let ctx = Context::new();
-    let sock = ctx.socket(REQ).unwrap();
-    let key = z85_decode("FX5b8g5ZnOk7$Q}^)Y&?.v3&MIe+]OU7DTKynkUL").unwrap();
-    sock.set_curve_serverkey(&key).unwrap();
-    assert_eq!(sock.get_curve_serverkey().unwrap(), key);
-});
-
 test!(test_getset_conflate, {
     let ctx = Context::new();
     let sock = ctx.socket(REQ).unwrap();
@@ -545,42 +531,6 @@ test!(test_disconnect_err, {
     );
 });
 
-#[cfg(ZMQ_HAS_GSSAPI = "1")]
-test!(test_getset_gssapi_server, {
-    let ctx = Context::new();
-    let sock = ctx.socket(REQ).unwrap();
-    sock.set_gssapi_server(true).unwrap();
-    assert_eq!(sock.is_gssapi_server().unwrap(), true);
-});
-
-#[cfg(ZMQ_HAS_GSSAPI = "1")]
-test!(test_getset_gssapi_principal, {
-    let ctx = Context::new();
-    let sock = ctx.socket(REQ).unwrap();
-    sock.set_gssapi_principal("principal").unwrap();
-    assert_eq!(sock.get_gssapi_principal().unwrap().unwrap(), "principal");
-});
-
-#[cfg(ZMQ_HAS_GSSAPI = "1")]
-test!(test_getset_gssapi_service_principal, {
-    let ctx = Context::new();
-    let sock = ctx.socket(REQ).unwrap();
-    sock.set_gssapi_service_principal("principal").unwrap();
-    assert_eq!(
-        sock.get_gssapi_service_principal().unwrap().unwrap(),
-        "principal"
-    );
-});
-
-#[cfg(ZMQ_HAS_GSSAPI = "1")]
-test!(test_getset_gssapi_plaintext, {
-    let ctx = Context::new();
-    let sock = ctx.socket(REQ).unwrap();
-    sock.set_gssapi_plaintext(true).unwrap();
-    assert_eq!(sock.is_gssapi_plaintext().unwrap(), true);
-});
-
-#[cfg(ZMQ_HAS_GSSAPI = "1")]
 test!(test_getset_handshake_ivl, {
     let ctx = Context::new();
     let sock = ctx.socket(REQ).unwrap();

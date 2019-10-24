@@ -3,9 +3,6 @@
 //! load balancing broker
 //! clients and workers here are shown in process
 
-extern crate rand;
-extern crate zmq;
-
 use zmq::SNDMORE;
 //use std::time::;
 use std::thread;
@@ -120,7 +117,8 @@ fn main() {
         let rc = zmq::poll(
             &mut items[0..if worker_queue.is_empty() { 1 } else { 2 }],
             -1,
-        ).unwrap();
+        )
+        .unwrap();
 
         if rc == -1 {
             break;

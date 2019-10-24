@@ -5,10 +5,6 @@
 //! In which the client requests each chunk individually, using
 //! command pipelining to give us a credit-based flow control.
 
-extern crate rand;
-extern crate tempfile;
-extern crate zmq;
-
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use std::fs::File;
@@ -18,7 +14,7 @@ use tempfile::tempfile;
 use zmq::SNDMORE;
 
 static CHUNK_SIZE: usize = 250_000;
-static CHUNK_SIZE_STR: &'static str = "250000";
+static CHUNK_SIZE_STR: &str = "250000";
 static PIPELINE: usize = 10;
 static PIPELINE_HWM: usize = 20;
 
@@ -110,7 +106,7 @@ fn server_thread(file: &mut File) -> Result<(), Error> {
         file.seek(SeekFrom::Start(offset)).unwrap();
         // Read chunk of data from file
         let mut data = vec![0; chunk_size];
-        let size = try!(file.read(&mut data));
+        let size = file.read(&mut data)?;
         data.truncate(size);
 
         // Send resulting chunk to client

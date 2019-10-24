@@ -1,11 +1,7 @@
-extern crate zmq;
-#[macro_use]
-extern crate quickcheck;
-
 #[macro_use]
 mod common;
 
-use quickcheck::{Arbitrary, Gen};
+use quickcheck::{quickcheck, Arbitrary, Gen};
 use zmq::Message;
 
 // A pair which contains two non-equal values
@@ -25,15 +21,15 @@ where
 
 quickcheck! {
     fn msg_cmp_eq(input: Vec<u8>) -> bool {
-        Message::from_slice(&input) == Message::from_slice(&input)
+        Message::from(&input) == Message::from(&input)
     }
 
     fn msg_cmp_ne(input: NePair<Vec<u8>>) -> bool {
-        Message::from_slice(&input.0) != Message::from_slice(&input.1)
+        Message::from(&input.0) != Message::from(&input.1)
     }
 
     fn msg_vec_roundtrip(input: Vec<u8>) -> bool {
-        let original = Message::from_slice(&input.clone());
+        let original = Message::from(&input.clone());
         Message::from(input) == original
     }
 }

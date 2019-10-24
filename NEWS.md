@@ -1,7 +1,71 @@
-# 0.9.0
+# 0.9.2
 
-This release will focus on API corrections and improving
-documentation.
+## New and improved functionality
+
+- Support for the `ZMQ_REQ_RELAXED` and `ZMQ_REQ_CORRELATE` socket
+  options, implemented in #285.
+
+## Compatibility
+
+- `SocketType`, `Mechanism`, and `Error` can not longer be cast to an
+  integer type and expected to get the corresponding `libzmq` C-level
+  value. The ability to cast to integers and get the C enum values was
+  never a documented part of the API, so this is not considered a
+  breaking change.
+
+  Unfortunately, the `SocketEvent` can not be future-proofed in this
+  way; the monitoring API needs breaking changes to gain a reasonable
+  level of type-safety.
+
+## Fixes
+
+- A potential panic in `Message::gets` involving messages with
+  non-UTF8 property values has been fixed; see #288.
+
+# 0.9.1
+
+## New and improved functionality
+
+- Added `vendored` feature which build `libzmq` from source via
+  [`zeromq-src`], see the [`README`] for details; discussed in #257
+  and implemented in #267.
+
+- The installed `libzmq` C library is no longer feature-probed at
+  build time, and all the wrapped API is exposed. Using features
+  unsupported by the installed `libzmq` library will lead to run-time
+  errors, like they would in C.
+
+  This should enable cross-compiling without jumping through
+  additional hoops.
+
+  Implemented in #276.
+
+- The `Message` data type now implements `From<Box<[u8]>`.
+
+- The `Message` data type has gained a new constructor `with_size`,
+  which replaces the now-deprecated, confusingly-named `with_capacity`
+  constructor. Reported in #215 and fixed in #272.
+
+- New functions `proxy_steerable` and `proxy_steerable_with_capture`,
+  which wrap the `zmq_proxy_steerable` C function. Implemented in
+  #242.
+
+[`README`]: ./README.md
+[`zeromq-src`]: https://github.com/jean-airoldie/zeromq-src-rs
+
+## Deprecations
+
+- The `Message` constructors `with_capacity_unallocated`,
+  `with_capacity` and `from_slice` methods are deprecated, the first
+  one without a planned alternative (#272).
+
+## Platform requirements
+
+- The codebase has been switched to the Rust 2018 edition and requires
+  `rustc` 1.32.0 or newer. Compatibility back to 1.32.0 is now ensured
+  via CI.
+
+# 0.9.0
 
 ## Incompatible API changes
 
@@ -36,6 +100,10 @@ documentation.
 - Support for the `zmq_socket_monitor` API.
 - Added `PollItem::set_events`, which allows for constructing a `PollItem` from
   arbitrary file descriptors.
+
+## Bug fixes
+
+- Fix feature detection for `zmq_has` (issue #207).
 
 # 0.8.2
 

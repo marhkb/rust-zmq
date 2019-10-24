@@ -1,11 +1,10 @@
 #![allow(dead_code)]
 
-extern crate env_logger;
 pub extern crate timebomb;
 
-use std::sync::{Once, ONCE_INIT};
+use std::sync::Once;
 
-static LOGGER_INIT: Once = ONCE_INIT;
+static LOGGER_INIT: Once = Once::new();
 
 #[macro_export]
 macro_rules! test {
@@ -14,6 +13,19 @@ macro_rules! test {
         fn $name() {
             $crate::common::ensure_env_logger_initialized();
             $crate::common::timebomb::timeout_ms(|| $block, 10000);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! test_capability {
+    ($name:ident, $capability:literal, $block:block) => {
+        #[test]
+        fn $name() {
+            if zmq::has($capability).unwrap() {
+                $crate::common::ensure_env_logger_initialized();
+                $crate::common::timebomb::timeout_ms(|| $block, 10000);
+            }
         }
     };
 }

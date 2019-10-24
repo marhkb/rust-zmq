@@ -4,10 +4,9 @@
 // `Socket::get_events()` to integrate with Unix `poll(2)` to check
 // the basis for integration with external event loops works.
 
-extern crate nix;
-extern crate zmq;
+use log::debug;
+use nix::poll::{self, PollFlags};
 
-use self::nix::poll;
 use super::with_connection;
 
 test!(test_external_poll_inproc, {
@@ -65,7 +64,7 @@ impl<'a> PollState<'a> {
         let fd = socket.get_fd().unwrap();
         PollState {
             socket,
-            fds: [poll::PollFd::new(fd, poll::EventFlags::POLLIN)],
+            fds: [poll::PollFd::new(fd, PollFlags::POLLIN)],
         }
     }
 
@@ -78,7 +77,7 @@ impl<'a> PollState<'a> {
             debug!("poll done, events: {:?}", fds[0].revents());
             match fds[0].revents() {
                 Some(events) => {
-                    if !events.contains(poll::EventFlags::POLLIN) {
+                    if !events.contains(PollFlags::POLLIN) {
                         continue;
                     }
                 }

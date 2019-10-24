@@ -1,10 +1,8 @@
-extern crate zmq;
-
-#[macro_use]
-extern crate quickcheck;
-
-use quickcheck::{Arbitrary, Gen};
+use quickcheck::{quickcheck, Arbitrary, Gen};
+use rand::Rng;
 use zmq::{z85_decode, z85_encode, DecodeError, EncodeError};
+
+use std::iter;
 
 #[test]
 fn test_z85() {
@@ -43,7 +41,7 @@ struct Input(Vec<u8>);
 impl Arbitrary for Input {
     fn arbitrary<G: Gen>(g: &mut G) -> Self {
         let len = g.gen_range(0, 256) * 4;
-        Input(g.gen_iter::<u8>().take(len).collect())
+        Input(iter::repeat(()).map(|_| g.gen()).take(len).collect())
     }
 }
 
